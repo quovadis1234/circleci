@@ -1,41 +1,30 @@
 version: 2.1
-jobs:
-  install_dependencies:
+executors:
+  maven-executor:
     docker:
-      - image: cimg/node:18.20.5
+      - image: cimg/openjdk:17.0
+    working_directory: ~/project
+jobs:
+  build:
+    executor: maven-executor
     steps:
       - checkout
       - restore_cache:
           keys:
-            - npm-cache-{{ checksum "package-lock.json" }}
-            - npm-cache-
+            - maven-cache-{{ checksum "pom.xml" }}
+            - maven-cache-
       - run:
-          name: Install dependencies
-          command: npm ci
+          name: Build with Maven
+          command: mvn clean install
       - save_cache:
           paths:
-            - ~/.npm
-          key: npm-cache-{{ checksum "package-lock.json" }}
-  run_playwright_tests:
-    docker:
-      - image: cimg/node:18.20.5
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - npm-cache-{{ checksum "package-lock.json" }}
-            - npm-cache-
-      - run:
-          name: Install dependencies
-          command: npm ci
-      - run:
-          name: Run Playwright Tests
-          command: npx playwright test
+            - ~/.m2
+          key: maven-cache-{{ checksum "pom.xml" }}
+      - store_artifacts:
+          path: target/
+          destination: build-artifacts
 workflows:
   version: 2
-  test:
+  build-deploy:
     jobs:
-      - install_dependencies
-      - run_playwright_tests:
-          requires:
-            - install_dependencies
+      - build
